@@ -1,0 +1,659 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Voice → Markdown</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600;9..144,800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #f4efe6;
+    --paper: #fbf7ee;
+    --ink: #1a1814;
+    --ink-soft: #4a443c;
+    --rule: #cfc6b4;
+    --accent: #b34a2a;     /* terracotta */
+    --accent-deep: #8a3819;
+    --navy: #1f2d44;
+    --good: #4a6b3a;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Fraunces", Georgia, serif;
+    font-feature-settings: "ss01", "ss02";
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    min-height: 100vh;
+    background-image:
+      radial-gradient(circle at 20% 10%, rgba(179, 74, 42, 0.04), transparent 40%),
+      radial-gradient(circle at 80% 90%, rgba(31, 45, 68, 0.05), transparent 40%);
+  }
+
+  .page {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 56px 32px 96px;
+  }
+
+  /* ---------- Header ---------- */
+  header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 18px;
+    margin-bottom: 56px;
+  }
+  .wordmark {
+    font-weight: 800;
+    font-size: 28px;
+    letter-spacing: -0.02em;
+    font-variation-settings: "opsz" 144;
+  }
+  .wordmark em {
+    color: var(--accent);
+    font-style: italic;
+    font-weight: 400;
+  }
+  .meta {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-soft);
+  }
+  .meta .dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #c0b8a5;
+    margin-right: 6px;
+    vertical-align: middle;
+    transition: background 0.2s ease;
+  }
+  .meta.online .dot { background: var(--good); }
+  .meta.offline .dot { background: var(--accent); }
+
+  /* ---------- Hero / recorder ---------- */
+  .recorder {
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 48px 40px;
+    text-align: center;
+    position: relative;
+    box-shadow: 0 1px 0 rgba(0,0,0,0.02), 0 20px 40px -30px rgba(26, 24, 20, 0.25);
+  }
+
+  .recorder::before, .recorder::after {
+    content: "";
+    position: absolute;
+    width: 14px; height: 14px;
+    border: 1px solid var(--rule);
+  }
+  .recorder::before { top: -1px; left: -1px; border-right: none; border-bottom: none; }
+  .recorder::after  { bottom: -1px; right: -1px; border-left: none; border-top: none; }
+
+  .label {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--ink-soft);
+    margin-bottom: 24px;
+  }
+
+  .timer {
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 144;
+    font-weight: 300;
+    font-size: 88px;
+    line-height: 1;
+    letter-spacing: -0.04em;
+    color: var(--ink);
+    margin: 0 0 28px;
+    font-feature-settings: "tnum";
+  }
+  .timer .ms {
+    font-size: 36px;
+    color: var(--ink-soft);
+    margin-left: 4px;
+  }
+
+  /* Level meter — stacked vertical bars */
+  .meter {
+    display: flex;
+    justify-content: center;
+    align-items: end;
+    gap: 4px;
+    height: 36px;
+    margin-bottom: 32px;
+  }
+  .meter span {
+    display: block;
+    width: 4px;
+    background: var(--rule);
+    height: 6px;
+    border-radius: 1px;
+    transition: height 60ms ease, background 60ms ease;
+  }
+
+  /* Buttons */
+  .controls {
+    display: flex;
+    justify-content: center;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  button {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    padding: 14px 28px;
+    border: 1px solid var(--ink);
+    background: var(--ink);
+    color: var(--paper);
+    cursor: pointer;
+    border-radius: 2px;
+    transition: transform 0.08s ease, background 0.15s ease, color 0.15s ease;
+  }
+  button:hover:not(:disabled) { transform: translateY(-1px); }
+  button:active:not(:disabled) { transform: translateY(0); }
+  button:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+  button.secondary {
+    background: transparent;
+    color: var(--ink);
+  }
+  button.danger {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  button.danger:hover:not(:disabled) {
+    background: var(--accent-deep);
+    border-color: var(--accent-deep);
+  }
+
+  .hint {
+    margin-top: 20px;
+    font-size: 14px;
+    color: var(--ink-soft);
+    font-style: italic;
+  }
+
+  /* Recording indicator pulse */
+  .rec-dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    margin-right: 8px;
+    animation: pulse 1.2s ease-in-out infinite;
+    vertical-align: middle;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: 0.4; transform: scale(0.85); }
+  }
+
+  /* ---------- Status / processing ---------- */
+  .status {
+    margin-top: 32px;
+    text-align: center;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--ink-soft);
+    min-height: 18px;
+  }
+  .status.error { color: var(--accent); text-transform: none; letter-spacing: 0; font-family: "Fraunces", serif; font-style: italic; font-size: 15px; }
+
+  /* ---------- Output ---------- */
+  .output {
+    margin-top: 64px;
+    display: none;
+  }
+  .output.visible { display: block; }
+
+  .output-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 18px;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .output-head h2 {
+    margin: 0;
+    font-family: "Fraunces", serif;
+    font-weight: 400;
+    font-style: italic;
+    font-size: 28px;
+    letter-spacing: -0.01em;
+  }
+  .output-head h2 span {
+    color: var(--accent);
+  }
+  .out-actions {
+    display: flex;
+    gap: 8px;
+  }
+  .out-actions button {
+    padding: 10px 16px;
+    font-size: 11px;
+  }
+
+  .markdown-pane {
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    padding: 32px 36px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--ink);
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    min-height: 200px;
+    max-height: 60vh;
+    overflow-y: auto;
+    border-radius: 2px;
+    outline: none;
+  }
+  .markdown-pane:focus {
+    border-color: var(--ink);
+  }
+
+  .stats {
+    margin-top: 12px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    text-align: right;
+  }
+
+  footer {
+    margin-top: 80px;
+    padding-top: 24px;
+    border-top: 1px solid var(--rule);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-soft);
+    text-align: center;
+  }
+
+  @media (max-width: 600px) {
+    .timer { font-size: 64px; }
+    .recorder { padding: 36px 24px; }
+    .markdown-pane { padding: 20px; }
+    .page { padding: 32px 20px 64px; }
+  }
+</style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <div class="wordmark">Voice <em>→</em> Markdown</div>
+      <div class="meta" id="serverStatus"><span class="dot"></span><span id="serverStatusText">checking…</span></div>
+    </header>
+
+    <main class="recorder" id="recorder">
+      <div class="label" id="stateLabel">Idle</div>
+
+      <div class="timer">
+        <span id="time">00:00</span><span class="ms" id="ms">.0</span>
+      </div>
+
+      <div class="meter" id="meter">
+        <!-- bars injected by JS -->
+      </div>
+
+      <div class="controls">
+        <button id="recordBtn">Start Recording</button>
+        <button id="stopBtn" class="danger" disabled>Stop</button>
+      </div>
+
+      <div class="hint" id="hint">Allow microphone access when prompted. Speak as long as you'd like.</div>
+    </main>
+
+    <div class="status" id="status"></div>
+
+    <section class="output" id="output">
+      <div class="output-head">
+        <h2>Transcript <span>·</span> Markdown</h2>
+        <div class="out-actions">
+          <button class="secondary" id="copyBtn">Copy</button>
+          <button class="secondary" id="downloadBtn">Download .md</button>
+          <button class="secondary" id="newBtn">New Session</button>
+        </div>
+      </div>
+      <div class="markdown-pane" id="markdown" contenteditable="true" spellcheck="true"></div>
+      <div class="stats" id="stats"></div>
+    </section>
+
+    <footer>
+      Local · Whisper · Open Source
+    </footer>
+  </div>
+
+<script>
+(() => {
+  // ---------- DOM ----------
+  const recordBtn = document.getElementById("recordBtn");
+  const stopBtn = document.getElementById("stopBtn");
+  const timeEl = document.getElementById("time");
+  const msEl = document.getElementById("ms");
+  const meterEl = document.getElementById("meter");
+  const statusEl = document.getElementById("status");
+  const stateLabel = document.getElementById("stateLabel");
+  const hintEl = document.getElementById("hint");
+  const outputEl = document.getElementById("output");
+  const markdownEl = document.getElementById("markdown");
+  const statsEl = document.getElementById("stats");
+  const copyBtn = document.getElementById("copyBtn");
+  const downloadBtn = document.getElementById("downloadBtn");
+  const newBtn = document.getElementById("newBtn");
+  const serverStatusEl = document.getElementById("serverStatus");
+  const serverStatusText = document.getElementById("serverStatusText");
+
+  // Build meter bars
+  const NUM_BARS = 24;
+  for (let i = 0; i < NUM_BARS; i++) {
+    meterEl.appendChild(document.createElement("span"));
+  }
+  const bars = meterEl.querySelectorAll("span");
+
+  // ---------- State ----------
+  let mediaRecorder = null;
+  let chunks = [];
+  let stream = null;
+  let audioCtx = null;
+  let analyser = null;
+  let rafId = null;
+  let startTime = 0;
+  let timerInterval = null;
+  let lastBlob = null;
+
+  // ---------- Server health check ----------
+  async function checkServer() {
+    try {
+      const r = await fetch("/health");
+      if (!r.ok) throw new Error();
+      const data = await r.json();
+      serverStatusEl.classList.add("online");
+      serverStatusEl.classList.remove("offline");
+      serverStatusText.textContent = `online · ${data.model}`;
+    } catch {
+      serverStatusEl.classList.add("offline");
+      serverStatusEl.classList.remove("online");
+      serverStatusText.textContent = "server offline";
+    }
+  }
+  checkServer();
+
+  // ---------- Timer ----------
+  function startTimer() {
+    startTime = performance.now();
+    timerInterval = setInterval(updateTimer, 50);
+  }
+  function stopTimer() {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+  function resetTimer() {
+    timeEl.textContent = "00:00";
+    msEl.textContent = ".0";
+  }
+  function updateTimer() {
+    const elapsed = (performance.now() - startTime) / 1000;
+    const m = Math.floor(elapsed / 60);
+    const s = Math.floor(elapsed % 60);
+    const tenths = Math.floor((elapsed * 10) % 10);
+    timeEl.textContent = `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+    msEl.textContent = `.${tenths}`;
+  }
+
+  // ---------- Level meter ----------
+  function startMeter(srcStream) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const source = audioCtx.createMediaStreamSource(srcStream);
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 256;
+    source.connect(analyser);
+    const data = new Uint8Array(analyser.frequencyBinCount);
+
+    const tick = () => {
+      analyser.getByteFrequencyData(data);
+      // Compute energy across frequency bins → distribute across bars.
+      const binsPerBar = Math.floor(data.length / NUM_BARS);
+      for (let i = 0; i < NUM_BARS; i++) {
+        let sum = 0;
+        for (let j = 0; j < binsPerBar; j++) {
+          sum += data[i * binsPerBar + j];
+        }
+        const avg = sum / binsPerBar;
+        const intensity = avg / 255; // 0..1
+        const h = 6 + intensity * 30;
+        bars[i].style.height = `${h}px`;
+        if (intensity > 0.55) {
+          bars[i].style.background = "var(--accent)";
+        } else if (intensity > 0.2) {
+          bars[i].style.background = "var(--ink-soft)";
+        } else {
+          bars[i].style.background = "var(--rule)";
+        }
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+    tick();
+  }
+  function stopMeter() {
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = null;
+    if (audioCtx) {
+      audioCtx.close().catch(() => {});
+      audioCtx = null;
+    }
+    bars.forEach(b => {
+      b.style.height = "6px";
+      b.style.background = "var(--rule)";
+    });
+  }
+
+  // ---------- Recording ----------
+  function pickMimeType() {
+    const candidates = [
+      "audio/webm;codecs=opus",
+      "audio/webm",
+      "audio/ogg;codecs=opus",
+      "audio/mp4",
+    ];
+    for (const c of candidates) {
+      if (window.MediaRecorder && MediaRecorder.isTypeSupported(c)) return c;
+    }
+    return "";
+  }
+
+  async function startRecording() {
+    statusEl.textContent = "";
+    statusEl.classList.remove("error");
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          channelCount: 1,
+          sampleRate: 16000,
+          echoCancellation: true,
+          noiseSuppression: true,
+        },
+      });
+    } catch (err) {
+      statusEl.textContent = "Microphone access denied or unavailable.";
+      statusEl.classList.add("error");
+      return;
+    }
+
+    const mimeType = pickMimeType();
+    try {
+      mediaRecorder = mimeType
+        ? new MediaRecorder(stream, { mimeType })
+        : new MediaRecorder(stream);
+    } catch (err) {
+      statusEl.textContent = "Could not start recorder: " + err.message;
+      statusEl.classList.add("error");
+      return;
+    }
+
+    chunks = [];
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data && e.data.size > 0) chunks.push(e.data);
+    };
+    mediaRecorder.onstop = onRecordingStop;
+
+    mediaRecorder.start(1000); // collect chunks every 1s
+
+    startTimer();
+    startMeter(stream);
+
+    recordBtn.disabled = true;
+    stopBtn.disabled = false;
+    stateLabel.innerHTML = '<span class="rec-dot"></span>Recording';
+    hintEl.textContent = "Speak naturally. Long pauses become paragraph breaks.";
+  }
+
+  function stopRecording() {
+    if (mediaRecorder && mediaRecorder.state !== "inactive") {
+      mediaRecorder.stop();
+    }
+    if (stream) {
+      stream.getTracks().forEach(t => t.stop());
+      stream = null;
+    }
+    stopTimer();
+    stopMeter();
+  }
+
+  async function onRecordingStop() {
+    stopBtn.disabled = true;
+    recordBtn.disabled = true;
+    stateLabel.textContent = "Processing";
+    hintEl.textContent = "Sending audio to local Whisper server. This can take a moment for longer recordings.";
+
+    const blob = new Blob(chunks, { type: chunks[0]?.type || "audio/webm" });
+    lastBlob = blob;
+
+    statusEl.classList.remove("error");
+    statusEl.textContent = "Transcribing…";
+
+    const t0 = performance.now();
+    try {
+      const fd = new FormData();
+      // Use a sensible filename so the server picks up the extension.
+      const ext = (blob.type.includes("ogg")) ? "ogg"
+                : (blob.type.includes("mp4")) ? "mp4"
+                : "webm";
+      fd.append("audio", blob, `recording.${ext}`);
+
+      const resp = await fetch("/transcribe", { method: "POST", body: fd });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.error || `Server returned ${resp.status}`);
+      }
+      const data = await resp.json();
+      const dt = ((performance.now() - t0) / 1000).toFixed(1);
+
+      markdownEl.textContent = data.markdown || "(empty transcription)";
+      statsEl.textContent = `${data.duration ? data.duration.toFixed(1) + "s audio · " : ""}${dt}s to transcribe · ${data.language || "?"} · ${(data.markdown || "").split(/\s+/).filter(Boolean).length} words`;
+      outputEl.classList.add("visible");
+      statusEl.textContent = "";
+      stateLabel.textContent = "Done";
+      hintEl.textContent = "Edit the markdown directly, then copy or download.";
+
+      // Scroll output into view
+      outputEl.scrollIntoView({ behavior: "smooth", block: "start" });
+    } catch (err) {
+      statusEl.classList.add("error");
+      statusEl.textContent = "Transcription failed: " + err.message;
+      stateLabel.textContent = "Error";
+      hintEl.textContent = "Make sure the local server is running (python server.py).";
+    } finally {
+      recordBtn.disabled = false;
+      resetTimer();
+    }
+  }
+
+  // ---------- Buttons ----------
+  recordBtn.addEventListener("click", startRecording);
+  stopBtn.addEventListener("click", stopRecording);
+
+  copyBtn.addEventListener("click", async () => {
+    const text = markdownEl.innerText;
+    try {
+      await navigator.clipboard.writeText(text);
+      copyBtn.textContent = "Copied ✓";
+      setTimeout(() => (copyBtn.textContent = "Copy"), 1500);
+    } catch {
+      // Fallback
+      const r = document.createRange();
+      r.selectNode(markdownEl);
+      window.getSelection().removeAllRanges();
+      window.getSelection().addRange(r);
+      document.execCommand("copy");
+      window.getSelection().removeAllRanges();
+      copyBtn.textContent = "Copied ✓";
+      setTimeout(() => (copyBtn.textContent = "Copy"), 1500);
+    }
+  });
+
+  downloadBtn.addEventListener("click", () => {
+    const text = markdownEl.innerText;
+    const blob = new Blob([text], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    a.href = url;
+    a.download = `transcript-${ts}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+
+  newBtn.addEventListener("click", () => {
+    outputEl.classList.remove("visible");
+    markdownEl.textContent = "";
+    statsEl.textContent = "";
+    stateLabel.textContent = "Idle";
+    hintEl.textContent = "Allow microphone access when prompted. Speak as long as you'd like.";
+    statusEl.textContent = "";
+    statusEl.classList.remove("error");
+  });
+
+  // Keyboard: spacebar toggles recording when not editing the output.
+  document.addEventListener("keydown", (e) => {
+    if (e.code === "Space" && document.activeElement !== markdownEl) {
+      e.preventDefault();
+      if (!recordBtn.disabled) startRecording();
+      else if (!stopBtn.disabled) stopRecording();
+    }
+  });
+})();
+</script>
+</body>
+</html>

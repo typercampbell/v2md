@@ -1,0 +1,48 @@
+# --- Python ---
+venv/
+.venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.Python
+build/
+dist/
+
+# --- Whisper / model caches ---
+# (faster-whisper caches to ~/.cache by default, but in case anyone
+# redirects it into the project folder)
+models/
+*.bin
+*.pt
+
+# --- OS junk ---
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# --- Editors / IDEs ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.cursor/
+
+# --- Environment / secrets ---
+.env
+.env.local
+*.local
+
+# --- Local recordings or test output ---
+recordings/
+*.webm
+*.wav
+*.mp3
+*.md.bak
+transcript-*.md
