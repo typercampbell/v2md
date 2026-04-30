@@ -91,6 +91,42 @@ The server uses Whisper's segment timestamps to detect pauses longer than
 1.2 seconds and inserts paragraph breaks there. It also lightly trims
 filler words (*um*, *uh*, *you know*) — light touch only, no rewriting.
 
+You can also use **voice commands** to produce structured Markdown.
+
+### Voice commands
+
+Block-level commands go at the start of an utterance. The "body" of the
+command is everything you say until you pause:
+
+| Say                          | Get                |
+|------------------------------|--------------------|
+| "heading project goals"      | `# Project goals`  |
+| "subheading action items"    | `## Action items`  |
+| "subsubheading details"      | `### Details`      |
+| "bullet ship by Friday"      | `- Ship by Friday` |
+| "numbered first thing"       | `1. First thing`   |
+| "quote a famous saying"      | `> A famous saying`|
+
+Numbered items auto-increment within a run — say "numbered" three times in
+a row and you get `1.`, `2.`, `3.` automatically.
+
+Standalone commands (whole utterance is the command):
+
+| Say                | Get                       |
+|--------------------|---------------------------|
+| "horizontal rule"  | `---`                     |
+| "new paragraph"    | forces a paragraph break  |
+| "new line"         | forces a line break       |
+
+Inline commands (need an explicit "end" word):
+
+| Say                                 | Get             |
+|-------------------------------------|-----------------|
+| "bold very important end bold"      | `**very important**` |
+| "italic emphasized end italic"      | `*emphasized*`  |
+| "inline code variable name end code"| `` `variable name` `` |
+| "code def hello end code"           | ` ```def hello``` ` (block) |
+
 The output panel in the browser is editable, so you can clean up further
 before copying or downloading.
 
