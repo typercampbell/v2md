@@ -176,14 +176,36 @@ BLOCK_COMMANDS = [
 # (or when Whisper's segmentation glues things together), they can say
 # "heading X end heading and then continue talking" and we'll cut the heading
 # at "end heading."
-END_PHRASES = {
-    "heading_1": ["end heading", "end header"],
-    "heading_2": ["end subheading", "end sub heading", "end subheader"],
-    "heading_3": ["end sub sub heading", "end subsubheading"],
-    "bullet":    ["end bullet", "end bullet point"],
-    "numbered":  ["end numbered", "end number"],
-    "quote":     ["end quote", "end blockquote", "end block quote"],
-}
+#
+# IMPORTANT: Whisper consistently mishears "end" as "and" because "and" is
+# vastly more common in English. So we accept "and" as an alias for "end"
+# in all terminator phrases. We also accept "stop" and "done" as alternatives
+# that don't have homophone issues — users can pick whichever feels natural.
+#
+# Generated programmatically below to keep the source readable.
+def _build_end_phrases():
+    """For each command, build the full set of recognized terminators."""
+    base_words = {
+        "heading_1": ["heading", "header"],
+        "heading_2": ["subheading", "sub heading", "subheader"],
+        "heading_3": ["sub sub heading", "subsubheading"],
+        "bullet":    ["bullet", "bullet point"],
+        "numbered":  ["numbered", "number"],
+        "quote":     ["quote", "blockquote", "block quote"],
+    }
+    # Prefixes that mean "stop": include 'and' to handle Whisper's end→and bug.
+    prefixes = ["end", "and", "stop", "done"]
+    out = {}
+    for cmd, words in base_words.items():
+        phrases = []
+        for prefix in prefixes:
+            for word in words:
+                phrases.append(f"{prefix} {word}")
+        out[cmd] = phrases
+    return out
+
+
+END_PHRASES = _build_end_phrases()
 
 
 def _split_on_end(body, cmd):
@@ -255,11 +277,20 @@ def _match_block(text):
 # Inline commands. Each has open phrases and close phrases; the text between
 # them gets wrapped. Order matters: "inline code" must come before "code"
 # block so the longer phrase wins.
+#
+# Like block-level end words, inline closers accept "and"/"stop"/"done" as
+# alternatives to "end" because Whisper persistently mishears "end" as "and".
+def _close_variants(*words):
+    """Build all recognized close phrases for inline commands."""
+    prefixes = ["end", "and", "stop", "done"]
+    return [f"{p} {w}" for p in prefixes for w in words]
+
+
 INLINE_COMMANDS = [
-    (["inline code"],        ["end code", "end inline code"], "`",          "`"),
-    (["code block", "code"], ["end code", "end code block"],  "\n```\n",    "\n```\n"),
-    (["bold"],               ["end bold"],                    "**",         "**"),
-    (["italic", "italics"],  ["end italic", "end italics"],   "*",          "*"),
+    (["inline code"],        _close_variants("code", "inline code"), "`",       "`"),
+    (["code block", "code"], _close_variants("code", "code block"),  "\n```\n", "\n```\n"),
+    (["bold"],               _close_variants("bold"),                "**",      "**"),
+    (["italic", "italics"],  _close_variants("italic", "italics"),   "*",       "*"),
 ]
 
 

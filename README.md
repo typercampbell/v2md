@@ -96,25 +96,31 @@ You can also use **voice commands** to produce structured Markdown.
 ### Voice commands
 
 Block-level commands go at the start of an utterance. The "body" of the
-command extends until either (a) you pause, or (b) you say an explicit
-**end** word. The end words are recommended — Whisper's segmentation isn't
-perfectly aligned with your pauses, so explicit terminators are the most
-reliable way to get the formatting you want.
+command extends until either (a) you pause, or (b) you say a **terminator
+word** like "end", "stop", or "done". Terminator words are recommended —
+Whisper's segmentation isn't perfectly aligned with your pauses, so explicit
+terminators are the most reliable way to get the formatting you want.
+
+> **Tip:** Whisper consistently mishears "end" as "and" because "and" is
+> far more common in English. The parser accepts **all four** as terminators:
+> `end heading`, `and heading`, `stop heading`, `done heading`. Pick whichever
+> feels natural — many people prefer "stop" or "done" because they don't have
+> the homophone issue.
 
 | Say                                            | Get                |
 |------------------------------------------------|--------------------|
-| "heading project goals **end heading**"        | `# Project goals`  |
-| "subheading action items **end subheading**"   | `## Action items`  |
-| "subsubheading details **end subsubheading**"  | `### Details`      |
-| "bullet ship by Friday **end bullet**"         | `- Ship by Friday` |
-| "numbered first thing **end numbered**"        | `1. First thing`   |
-| "quote a famous saying **end quote**"          | `> A famous saying`|
+| "heading project goals **stop heading**"       | `# Project goals`  |
+| "subheading action items **stop subheading**"  | `## Action items`  |
+| "subsubheading details **stop subsubheading**" | `### Details`      |
+| "bullet ship by Friday **stop bullet**"        | `- Ship by Friday` |
+| "numbered first thing **stop numbered**"       | `1. First thing`   |
+| "quote a famous saying **stop quote**"         | `> A famous saying`|
 
 Numbered items auto-increment within a run — say "numbered" three times in
 a row and you get `1.`, `2.`, `3.` automatically.
 
-You can also chain commands: *"heading project goals end heading bullet ship
-by Friday end bullet"* gives you a heading followed by a bullet on the next
+You can also chain commands: *"heading project goals stop heading bullet ship
+by Friday stop bullet"* gives you a heading followed by a bullet on the next
 line.
 
 Standalone commands (whole utterance is the command):
@@ -125,14 +131,14 @@ Standalone commands (whole utterance is the command):
 | "new paragraph"    | forces a paragraph break  |
 | "new line"         | forces a line break       |
 
-Inline commands (always need an explicit "end" word):
+Inline commands (always need a terminator word):
 
-| Say                                 | Get             |
-|-------------------------------------|-----------------|
-| "bold very important end bold"      | `**very important**` |
-| "italic emphasized end italic"      | `*emphasized*`  |
-| "inline code variable name end code"| `` `variable name` `` |
-| "code def hello end code"           | ` ```def hello``` ` (block) |
+| Say                                  | Get             |
+|--------------------------------------|-----------------|
+| "bold very important stop bold"      | `**very important**` |
+| "italic emphasized stop italic"      | `*emphasized*`  |
+| "inline code variable name stop code"| `` `variable name` `` |
+| "code def hello stop code"           | ` ```def hello``` ` (block) |
 
 The output panel in the browser is editable, so you can clean up further
 before copying or downloading.
