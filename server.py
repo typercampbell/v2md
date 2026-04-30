@@ -94,7 +94,14 @@ def transcribe():
             tmp_path,
             beam_size=5,
             vad_filter=True,
-            vad_parameters={"min_silence_duration_ms": 500},
+            # More aggressive silence splitting so user pauses reliably
+            # produce segment boundaries. 350ms is short enough to catch
+            # the natural ~1s pauses between voice commands and their
+            # bodies, while still ignoring micro-pauses within a sentence.
+            vad_parameters={
+                "min_silence_duration_ms": 350,
+                "speech_pad_ms": 100,
+            },
         )
 
         seg_list = [
@@ -145,7 +152,7 @@ def transcribe():
 # practice.
 # =============================================================================
 
-PAUSE_THRESHOLD = 1.2  # seconds
+PAUSE_THRESHOLD = 0.7  # seconds — gap between segments that starts a new utterance
 
 FILLER_PATTERNS = [
     r"\b(um|uh|er|erm|hmm)\b[,.]?\s*",
@@ -164,6 +171,38 @@ BLOCK_COMMANDS = [
     ("numbered",  ["numbered", "numbered point", "numbered item"]),
     ("quote",     ["quote", "block quote", "blockquote"]),
 ]
+
+# Explicit terminators for block commands. When users want to be unambiguous
+# (or when Whisper's segmentation glues things together), they can say
+# "heading X end heading and then continue talking" and we'll cut the heading
+# at "end heading."
+END_PHRASES = {
+    "heading_1": ["end heading", "end header"],
+    "heading_2": ["end subheading", "end sub heading", "end subheader"],
+    "heading_3": ["end sub sub heading", "end subsubheading"],
+    "bullet":    ["end bullet", "end bullet point"],
+    "numbered":  ["end numbered", "end number"],
+    "quote":     ["end quote", "end blockquote", "end block quote"],
+}
+
+
+def _split_on_end(body, cmd):
+    """
+    If body contains an "end <cmd>" phrase, split there and return
+    (head, tail). The head is what gets formatted as the block; the tail
+    is treated as a follow-on paragraph. Returns (body, "") if no end found.
+    """
+    phrases = END_PHRASES.get(cmd, [])
+    for phrase in phrases:
+        # Match the phrase as a whole word with optional trailing punctuation.
+        pattern = r"\b" + re.escape(phrase) + r"\b[\s,.:;]*"
+        m = re.search(pattern, body, flags=re.IGNORECASE)
+        if m:
+            head = body[:m.start()].strip().rstrip(",.;:")
+            tail = body[m.end():].strip()
+            return head, tail
+    return body, ""
+
 
 # Standalone block commands (whole utterance is the command, no body).
 STANDALONE_COMMANDS = [
@@ -320,24 +359,68 @@ def format_as_markdown(segments):
             numbered_run = 0
 
         if cmd:
-            body = _apply_inline(body)
-            body = _clean_fillers(body)
-            if not body:
+            # Check for an explicit "end <cmd>" terminator. If found, split
+            # the body so we format the head as the block and treat the tail
+            # as a follow-on paragraph.
+            head, tail = _split_on_end(body, cmd)
+
+            head = _apply_inline(head)
+            head = _clean_fillers(head)
+            if not head:
+                # Body was just a terminator with no content — skip.
+                if tail:
+                    tail_clean = _clean_fillers(_apply_inline(tail))
+                    if tail_clean:
+                        blocks.append(("para", tail_clean))
                 continue
 
             if cmd == "heading_1":
-                blocks.append(("heading", f"# {body}"))
+                blocks.append(("heading", f"# {head}"))
             elif cmd == "heading_2":
-                blocks.append(("heading", f"## {body}"))
+                blocks.append(("heading", f"## {head}"))
             elif cmd == "heading_3":
-                blocks.append(("heading", f"### {body}"))
+                blocks.append(("heading", f"### {head}"))
             elif cmd == "bullet":
-                blocks.append(("bullet", f"- {body}"))
+                blocks.append(("bullet", f"- {head}"))
             elif cmd == "numbered":
                 numbered_run += 1
-                blocks.append(("numbered", f"{numbered_run}. {body}"))
+                blocks.append(("numbered", f"{numbered_run}. {head}"))
             elif cmd == "quote":
-                blocks.append(("quote", f"> {body}"))
+                blocks.append(("quote", f"> {head}"))
+
+            # Now handle the tail (text after "end heading", etc.)
+            if tail:
+                # Recursively check whether the tail itself starts with a
+                # new block command — that way "heading X end heading bullet Y"
+                # produces a heading followed by a bullet.
+                sub_cmd, sub_body = _match_block(tail)
+                if sub_cmd:
+                    sub_head, sub_tail = _split_on_end(sub_body, sub_cmd)
+                    sub_head = _clean_fillers(_apply_inline(sub_head))
+                    if sub_head:
+                        if sub_cmd != "numbered":
+                            numbered_run = 0
+                        if sub_cmd == "heading_1":
+                            blocks.append(("heading", f"# {sub_head}"))
+                        elif sub_cmd == "heading_2":
+                            blocks.append(("heading", f"## {sub_head}"))
+                        elif sub_cmd == "heading_3":
+                            blocks.append(("heading", f"### {sub_head}"))
+                        elif sub_cmd == "bullet":
+                            blocks.append(("bullet", f"- {sub_head}"))
+                        elif sub_cmd == "numbered":
+                            numbered_run += 1
+                            blocks.append(("numbered", f"{numbered_run}. {sub_head}"))
+                        elif sub_cmd == "quote":
+                            blocks.append(("quote", f"> {sub_head}"))
+                    if sub_tail:
+                        sub_tail_clean = _clean_fillers(_apply_inline(sub_tail))
+                        if sub_tail_clean:
+                            blocks.append(("para", sub_tail_clean))
+                else:
+                    tail_clean = _clean_fillers(_apply_inline(tail))
+                    if tail_clean:
+                        blocks.append(("para", tail_clean))
         else:
             cleaned = _apply_inline(text)
             cleaned = _clean_fillers(cleaned)

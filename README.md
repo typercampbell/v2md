@@ -96,19 +96,26 @@ You can also use **voice commands** to produce structured Markdown.
 ### Voice commands
 
 Block-level commands go at the start of an utterance. The "body" of the
-command is everything you say until you pause:
+command extends until either (a) you pause, or (b) you say an explicit
+**end** word. The end words are recommended — Whisper's segmentation isn't
+perfectly aligned with your pauses, so explicit terminators are the most
+reliable way to get the formatting you want.
 
-| Say                          | Get                |
-|------------------------------|--------------------|
-| "heading project goals"      | `# Project goals`  |
-| "subheading action items"    | `## Action items`  |
-| "subsubheading details"      | `### Details`      |
-| "bullet ship by Friday"      | `- Ship by Friday` |
-| "numbered first thing"       | `1. First thing`   |
-| "quote a famous saying"      | `> A famous saying`|
+| Say                                            | Get                |
+|------------------------------------------------|--------------------|
+| "heading project goals **end heading**"        | `# Project goals`  |
+| "subheading action items **end subheading**"   | `## Action items`  |
+| "subsubheading details **end subsubheading**"  | `### Details`      |
+| "bullet ship by Friday **end bullet**"         | `- Ship by Friday` |
+| "numbered first thing **end numbered**"        | `1. First thing`   |
+| "quote a famous saying **end quote**"          | `> A famous saying`|
 
 Numbered items auto-increment within a run — say "numbered" three times in
 a row and you get `1.`, `2.`, `3.` automatically.
+
+You can also chain commands: *"heading project goals end heading bullet ship
+by Friday end bullet"* gives you a heading followed by a bullet on the next
+line.
 
 Standalone commands (whole utterance is the command):
 
@@ -118,7 +125,7 @@ Standalone commands (whole utterance is the command):
 | "new paragraph"    | forces a paragraph break  |
 | "new line"         | forces a line break       |
 
-Inline commands (need an explicit "end" word):
+Inline commands (always need an explicit "end" word):
 
 | Say                                 | Get             |
 |-------------------------------------|-----------------|
